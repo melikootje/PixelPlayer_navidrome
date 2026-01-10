@@ -142,6 +142,13 @@ constructor(
         
         // Lyrics Sync Offset per song (Map<songId, offsetMs> as JSON)
         val LYRICS_SYNC_OFFSETS = stringPreferencesKey("lyrics_sync_offsets_json")
+        
+        // Subsonic/Navidrome Server Settings
+        val SUBSONIC_ENABLED = booleanPreferencesKey("subsonic_enabled")
+        val SUBSONIC_SERVER_URL = stringPreferencesKey("subsonic_server_url")
+        val SUBSONIC_USERNAME = stringPreferencesKey("subsonic_username")
+        val SUBSONIC_PASSWORD = stringPreferencesKey("subsonic_password")
+        val SUBSONIC_USE_LOCAL_CACHE = booleanPreferencesKey("subsonic_use_local_cache")
     }
 
     val appRebrandDialogShownFlow: Flow<Boolean> =
@@ -1315,9 +1322,66 @@ constructor(
             }
         }
         
-    suspend fun setPinnedPresets(presetNames: List<String>) {
+    suspend fun setPinnedPresets(pinnedNames: List<String>) {
         dataStore.edit { preferences ->
-            preferences[PreferencesKeys.PINNED_PRESETS] = json.encodeToString(presetNames)
+            preferences[PreferencesKeys.PINNED_PRESETS] = json.encodeToString(pinnedNames)
+        }
+    }
+    
+    // ===== Subsonic/Navidrome Server Settings =====
+    
+    val subsonicEnabledFlow: Flow<Boolean> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.SUBSONIC_ENABLED] ?: false
+        }
+    
+    suspend fun setSubsonicEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SUBSONIC_ENABLED] = enabled
+        }
+    }
+    
+    val subsonicServerUrlFlow: Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.SUBSONIC_SERVER_URL] ?: ""
+        }
+    
+    suspend fun setSubsonicServerUrl(url: String) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SUBSONIC_SERVER_URL] = url
+        }
+    }
+    
+    val subsonicUsernameFlow: Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.SUBSONIC_USERNAME] ?: ""
+        }
+    
+    suspend fun setSubsonicUsername(username: String) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SUBSONIC_USERNAME] = username
+        }
+    }
+    
+    val subsonicPasswordFlow: Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.SUBSONIC_PASSWORD] ?: ""
+        }
+    
+    suspend fun setSubsonicPassword(password: String) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SUBSONIC_PASSWORD] = password
+        }
+    }
+    
+    val subsonicUseLocalCacheFlow: Flow<Boolean> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.SUBSONIC_USE_LOCAL_CACHE] ?: true
+        }
+    
+    suspend fun setSubsonicUseLocalCache(useCache: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SUBSONIC_USE_LOCAL_CACHE] = useCache
         }
     }
 }

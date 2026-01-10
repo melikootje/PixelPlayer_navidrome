@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.background
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material3.AlertDialog
@@ -75,6 +77,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import com.theveloper.pixelplay.R
 import com.theveloper.pixelplay.data.preferences.AppThemeMode
 import com.theveloper.pixelplay.data.preferences.CarouselStyle
@@ -448,6 +452,77 @@ fun SettingsCategoryScreen(
                                 leadingIcon = { Icon(painterResource(R.drawable.rounded_all_inclusive_24), null, tint = MaterialTheme.colorScheme.secondary) }
                             )
                         }
+                        SettingsCategory.SERVER -> {
+                            val settingsViewModelForPrefs = hiltViewModel<SettingsViewModel>()
+                            var serverUrl by remember { mutableStateOf("") }
+                            var username by remember { mutableStateOf("") }
+                            var password by remember { mutableStateOf("") }
+                            var isEnabled by remember { mutableStateOf(false) }
+                            var testConnectionState by remember { mutableStateOf<TestConnectionState>(TestConnectionState.Idle) }
+                            
+                            LaunchedEffect(Unit) {
+                                settingsViewModelForPrefs.geminiApiKey.first() // Access to trigger init if needed
+                                // Read from DataStore using flows (we need a workaround)
+                                // For now, set default values - they'll be initialized in PixelPlayApplication
+                                serverUrl = ""
+                                username = ""
+                                password = ""
+                                isEnabled = true
+                            }
+                            
+                            SwitchSettingItem(
+                                title = "Enable Navidrome/Subsonic",
+                                subtitle = "Stream music from your Navidrome server",
+                                checked = isEnabled,
+                                onCheckedChange = { 
+                                    isEnabled = it
+                                },
+                                leadingIcon = { Icon(Icons.Rounded.Cloud, null, tint = MaterialTheme.colorScheme.secondary) }
+                            )
+                            
+                            Spacer(Modifier.height(4.dp))
+                            
+                            TextFieldSettingItem(
+                                label = "Server URL",
+                                value = serverUrl,
+                                onValueChange = { serverUrl = it },
+                                placeholder = "http://server:port",
+                                enabled = isEnabled
+                            )
+                            
+                            Spacer(Modifier.height(4.dp))
+                            
+                            TextFieldSettingItem(
+                                label = "Username",
+                                value = username,
+                                onValueChange = { username = it },
+                                placeholder = "Your username",
+                                enabled = isEnabled
+                            )
+                            
+                            Spacer(Modifier.height(4.dp))
+                            
+                            TextFieldSettingItem(
+                                label = "Password",
+                                value = password,
+                                onValueChange = { password = it },
+                                placeholder = "Your password",
+                                isPassword = true,
+                                enabled = isEnabled
+                            )
+                            
+                            if (isEnabled) {
+                                Spacer(Modifier.height(8.dp))
+                                
+                                TestConnectionButton(
+                                    serverUrl = serverUrl,
+                                    username = username,
+                                    password = password,
+                                    testState = testConnectionState,
+                                    onTest = { testConnectionState = it }
+                                )
+                            }
+                        }
                         SettingsCategory.AI_INTEGRATION -> {
                             GeminiApiKeyItem(
                                 apiKey = geminiApiKey,
@@ -649,5 +724,138 @@ fun SettingsCategoryScreen(
             },
             dismissButton = { TextButton(onClick = { showRebuildDatabaseWarning = false }) { Text("Cancel") } }
         )
+    }
+}
+
+// Server Settings Helper Composables
+sealed class TestConnectionState {
+    object Idle : TestConnectionState()
+    object Testing : TestConnectionState()
+    data class Success(val message: String) : TestConnectionState()
+    data class Error(val message: String) : TestConnectionState()
+}
+
+@Composable
+fun TextFieldSettingItem(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String = "",
+    isPassword: Boolean = false,
+    enabled: Boolean = true
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleSmall,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        )
+        Spacer(Modifier.height(8.dp))
+        androidx.compose.material3.OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = { Text(placeholder) },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = if (isPassword) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+            colors = androidx.compose.material3.TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        )
+    }
+}
+
+@Composable
+fun TestConnectionButton(
+    serverUrl: String,
+    username: String,
+    password: String,
+    testState: TestConnectionState,
+    onTest: (TestConnectionState) -> Unit
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(16.dp)
+    ) {
+        androidx.compose.material3.Button(
+            onClick = {
+                if (serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
+                    onTest(TestConnectionState.Error("Please fill in all fields"))
+                    return@Button
+                }
+                
+                onTest(TestConnectionState.Testing)
+                coroutineScope.launch {
+                    try {
+                        // Simple ping test using OkHttp
+                        val client = okhttp3.OkHttpClient.Builder()
+                            .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                            .build()
+                        
+                        val url = "$serverUrl/rest/ping.view?u=$username&p=$password&v=1.16.1&c=PixelPlayer&f=json"
+                        val request = okhttp3.Request.Builder().url(url).build()
+                        
+                        withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            val response = client.newCall(request).execute()
+                            if (response.isSuccessful) {
+                                onTest(TestConnectionState.Success("Connection successful!"))
+                            } else {
+                                onTest(TestConnectionState.Error("Server returned: ${response.code}"))
+                            }
+                        }
+                    } catch (e: Exception) {
+                        onTest(TestConnectionState.Error("Connection failed: ${e.message}"))
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = testState !is TestConnectionState.Testing
+        ) {
+            when (testState) {
+                is TestConnectionState.Testing -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Testing...")
+                }
+                else -> Text("Test Connection")
+            }
+        }
+        
+        when (testState) {
+            is TestConnectionState.Success -> {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = testState.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF4CAF50)
+                )
+            }
+            is TestConnectionState.Error -> {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = testState.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            else -> {}
+        }
     }
 }

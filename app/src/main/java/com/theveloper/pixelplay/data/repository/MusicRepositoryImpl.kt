@@ -28,6 +28,7 @@ import com.theveloper.pixelplay.data.database.toSearchHistoryItem
 import com.theveloper.pixelplay.data.model.Artist
 import com.theveloper.pixelplay.data.model.Playlist
 import com.theveloper.pixelplay.data.model.SearchFilterType
+import com.theveloper.pixelplay.data.repository.SubsonicRepository
 import com.theveloper.pixelplay.data.model.SearchHistoryItem
 import com.theveloper.pixelplay.data.model.SearchResultItem
 import com.theveloper.pixelplay.data.model.SortOption
@@ -71,10 +72,21 @@ class MusicRepositoryImpl @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val searchHistoryDao: SearchHistoryDao,
     private val musicDao: MusicDao,
-    private val lyricsRepository: LyricsRepository
+    private val lyricsRepository: LyricsRepository,
+    private val subsonicRepository: SubsonicRepository
 ) : MusicRepository {
 
     private val directoryScanMutex = Mutex()
+
+    // Helper to check if Subsonic mode is enabled
+    private suspend fun isSubsonicEnabled(): Boolean {
+        return try {
+            userPreferencesRepository.subsonicEnabledFlow.first()
+        } catch (e: Exception) {
+            Log.e("MusicRepository", "Error checking Subsonic enabled", e)
+            false
+        }
+    }
 
     private data class DirectoryFilterConfig(
         val normalizedAllowed: Set<String>,

@@ -21,11 +21,13 @@ import com.theveloper.pixelplay.data.preferences.dataStore
 import com.theveloper.pixelplay.data.media.SongMetadataEditor
 import com.theveloper.pixelplay.data.network.deezer.DeezerApiService
 import com.theveloper.pixelplay.data.network.lyrics.LrcLibApiService
+import com.theveloper.pixelplay.data.network.subsonic.SubsonicApiService
 import com.theveloper.pixelplay.data.repository.ArtistImageRepository
 import com.theveloper.pixelplay.data.repository.LyricsRepository
 import com.theveloper.pixelplay.data.repository.LyricsRepositoryImpl
 import com.theveloper.pixelplay.data.repository.MusicRepository
 import com.theveloper.pixelplay.data.repository.MusicRepositoryImpl
+import com.theveloper.pixelplay.data.repository.SubsonicRepository
 import com.theveloper.pixelplay.data.repository.TransitionRepository
 import com.theveloper.pixelplay.data.repository.TransitionRepositoryImpl
 import dagger.Module
@@ -155,14 +157,16 @@ object AppModule {
         userPreferencesRepository: UserPreferencesRepository,
         searchHistoryDao: SearchHistoryDao,
         musicDao: MusicDao, // Añadir MusicDao como parámetro
-        lyricsRepository: LyricsRepository
+        lyricsRepository: LyricsRepository,
+        subsonicRepository: SubsonicRepository
     ): MusicRepository {
         return MusicRepositoryImpl(
             context = context,
             userPreferencesRepository = userPreferencesRepository,
             searchHistoryDao = searchHistoryDao,
             musicDao = musicDao,
-            lyricsRepository = lyricsRepository
+            lyricsRepository = lyricsRepository,
+            subsonicRepository = subsonicRepository
         )
     }
 
@@ -353,5 +357,28 @@ object AppModule {
         musicDao: MusicDao
     ): ArtistImageRepository {
         return ArtistImageRepository(deezerApiService, musicDao)
+    }
+
+    /**
+     * Provee una instancia de Retrofit para la API de Subsonic/Navidrome.
+     */
+    @Provides
+    @Singleton
+    @SubsonicRetrofit
+    fun provideSubsonicRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("http://localhost:4533/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    /**
+     * Provee el servicio de la API de Subsonic.
+     */
+    @Provides
+    @Singleton
+    fun provideSubsonicApiService(@SubsonicRetrofit retrofit: Retrofit): SubsonicApiService {
+        return retrofit.create(SubsonicApiService::class.java)
     }
 }

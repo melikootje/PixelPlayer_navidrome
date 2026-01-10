@@ -141,6 +141,15 @@ class SetupViewModel @Inject constructor(
 
     fun explorerRoot(): File = fileExplorerStateHolder.rootDirectory()
 
+    fun saveNavidromeConfig(serverUrl: String, username: String, password: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setSubsonicEnabled(true)
+            userPreferencesRepository.setSubsonicServerUrl(serverUrl)
+            userPreferencesRepository.setSubsonicUsername(username)
+            userPreferencesRepository.setSubsonicPassword(password)
+        }
+    }
+
     fun setSetupComplete() {
         viewModelScope.launch {
             userPreferencesRepository.setInitialSetupDone(true)

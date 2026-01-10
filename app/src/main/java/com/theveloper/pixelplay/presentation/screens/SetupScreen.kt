@@ -146,6 +146,8 @@ fun SetupScreen(
         }
         // Add battery optimization page (optional step)
         list.add(SetupPage.BatteryOptimization)
+        // Add Navidrome configuration page (optional)
+        list.add(SetupPage.NavidromeConfig)
         list.add(SetupPage.Finish)
         list
     }
@@ -234,6 +236,14 @@ fun SetupScreen(
                     SetupPage.NotificationsPermission -> NotificationsPermissionPage(uiState)
                     SetupPage.AllFilesPermission -> AllFilesPermissionPage(uiState)
                     SetupPage.BatteryOptimization -> BatteryOptimizationPage(
+                        onSkip = {
+                            scope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                            }
+                        }
+                    )
+                    SetupPage.NavidromeConfig -> NavidromeConfigPage(
+                        setupViewModel = setupViewModel,
                         onSkip = {
                             scope.launch {
                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
@@ -329,6 +339,7 @@ sealed class SetupPage {
     object NotificationsPermission : SetupPage()
     object AllFilesPermission : SetupPage()
     object BatteryOptimization : SetupPage()
+    object NavidromeConfig : SetupPage()
     object Finish : SetupPage()
 }
 
@@ -605,6 +616,116 @@ fun BatteryOptimizationPage(
         if (!isIgnoringBatteryOptimizations) {
             TextButton(onClick = onSkip) {
                 Text("Skip for now")
+            }
+        }
+    }
+}
+
+@Composable
+fun NavidromeConfigPage(
+    setupViewModel: SetupViewModel,
+    onSkip: () -> Unit
+) {
+    val context = LocalContext.current
+    val cloudIcons = persistentListOf(
+        R.drawable.rounded_cloud_24,
+        R.drawable.rounded_music_note_24,
+        R.drawable.rounded_album_24,
+        R.drawable.rounded_artist_24,
+        R.drawable.rounded_playlist_play_24
+    )
+    
+    var serverUrl by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var isSaving by remember { mutableStateOf(false) }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp)
+    ) {
+        Text(
+            text = "Navidrome Server (Optional)",
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        PermissionIconCollage(icons = cloudIcons)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Stream music from your Navidrome or Subsonic server. You can skip this and configure it later in Settings.",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        androidx.compose.material3.OutlinedTextField(
+            value = serverUrl,
+            onValueChange = { serverUrl = it },
+            label = { Text("Server URL") },
+            placeholder = { Text("http://your-server:port") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        androidx.compose.material3.OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Username") },
+            placeholder = { Text("Your username") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        androidx.compose.material3.OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            placeholder = { Text("Your password") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            TextButton(
+                onClick = onSkip,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Skip for now")
+            }
+            
+            Button(
+                onClick = {
+                    if (serverUrl.isNotBlank() && username.isNotBlank() && password.isNotBlank()) {
+                        isSaving = true
+                        setupViewModel.saveNavidromeConfig(serverUrl, username, password)
+                        Toast.makeText(context, "Navidrome configured successfully", Toast.LENGTH_SHORT).show()
+                        onSkip() // Move to next page
+                    } else {
+                        Toast.makeText(context, "Please fill in all fields", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                enabled = !isSaving,
+                modifier = Modifier.weight(1f)
+            ) {
+                if (isSaving) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Save & Continue")
+                }
             }
         }
     }
