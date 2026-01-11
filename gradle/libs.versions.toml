@@ -196,4 +196,3 @@ dagger-hilt-android = { id = "com.google.dagger.hilt.android" , version.ref = "d
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp"}
 android-test = { id = "com.android.test", version.ref = "agp" }
 baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineprofile" }
-
