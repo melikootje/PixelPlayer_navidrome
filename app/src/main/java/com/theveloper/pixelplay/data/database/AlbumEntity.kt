@@ -22,7 +22,8 @@ data class AlbumEntity(
     @ColumnInfo(name = "artist_id") val artistId: Long, // ID del artista principal del álbum (si aplica)
     @ColumnInfo(name = "album_art_uri_string") val albumArtUriString: String?,
     @ColumnInfo(name = "song_count") val songCount: Int,
-    @ColumnInfo(name = "year") val year: Int
+    @ColumnInfo(name = "year") val year: Int,
+    @ColumnInfo(name = "subsonic_id") val subsonicId: String? = null // Original Subsonic/Navidrome ID
 )
 
 fun AlbumEntity.toAlbum(): Album {
@@ -32,7 +33,8 @@ fun AlbumEntity.toAlbum(): Album {
         artist = this.artistName.normalizeMetadataTextOrEmpty(),
         albumArtUriString = this.albumArtUriString, // El modelo Album usa albumArtUrl
         songCount = this.songCount,
-        year = this.year
+        year = this.year,
+        subsonicId = this.subsonicId
     )
 }
 

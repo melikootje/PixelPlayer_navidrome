@@ -77,6 +77,7 @@ class SettingsViewModel @Inject constructor(
     private val geminiModelService: GeminiModelService,
     private val lyricsRepository: LyricsRepository,
     private val musicRepository: MusicRepository,
+    private val tidalRepository: com.theveloper.pixelplay.data.repository.TidalRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -91,6 +92,33 @@ class SettingsViewModel @Inject constructor(
 
     val geminiSystemPrompt: StateFlow<String> = userPreferencesRepository.geminiSystemPrompt
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserPreferencesRepository.DEFAULT_SYSTEM_PROMPT)
+
+    val subsonicEnabled: StateFlow<Boolean> = userPreferencesRepository.subsonicEnabledFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val subsonicServerUrl: StateFlow<String> = userPreferencesRepository.subsonicServerUrlFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val subsonicUsername: StateFlow<String> = userPreferencesRepository.subsonicUsernameFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val subsonicPassword: StateFlow<String> = userPreferencesRepository.subsonicPasswordFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val tidalEnabled: StateFlow<Boolean> = userPreferencesRepository.tidalEnabledFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val tidalServerUrl: StateFlow<String> = userPreferencesRepository.tidalServerUrlFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "http://localhost:3000")
+
+    val tidalUsername: StateFlow<String> = userPreferencesRepository.tidalUsernameFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val tidalPassword: StateFlow<String> = userPreferencesRepository.tidalPasswordFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val tidalQuality: StateFlow<String> = userPreferencesRepository.tidalQualityFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "LOSSLESS")
 
     private val fileExplorerStateHolder = FileExplorerStateHolder(userPreferencesRepository, viewModelScope, context)
 
@@ -485,7 +513,71 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setSubsonicEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setSubsonicEnabled(enabled)
+        }
+    }
 
+    fun setSubsonicServerUrl(url: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setSubsonicServerUrl(url)
+        }
+    }
+
+    fun setSubsonicUsername(username: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setSubsonicUsername(username)
+        }
+    }
+
+    fun setSubsonicPassword(password: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setSubsonicPassword(password)
+        }
+    }
+
+    fun setTidalEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setTidalEnabled(enabled)
+        }
+    }
+
+    fun setTidalServerUrl(url: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setTidalServerUrl(url)
+        }
+    }
+
+    fun setTidalUsername(username: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setTidalUsername(username)
+        }
+    }
+
+    fun setTidalPassword(password: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setTidalPassword(password)
+        }
+    }
+
+    fun setTidalQuality(quality: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setTidalQuality(quality)
+        }
+    }
+
+    /**
+     * Test Tidal HiFi API connection
+     * @return Result indicating success or failure with error message
+     */
+    suspend fun testTidalConnection(): Result<Boolean> {
+        return try {
+            tidalRepository.testConnection()
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     /**
      * Triggers a test crash to verify the crash handler is working correctly.

@@ -149,6 +149,15 @@ constructor(
         val SUBSONIC_USERNAME = stringPreferencesKey("subsonic_username")
         val SUBSONIC_PASSWORD = stringPreferencesKey("subsonic_password")
         val SUBSONIC_USE_LOCAL_CACHE = booleanPreferencesKey("subsonic_use_local_cache")
+
+        // Tidal HiFi API Settings
+        val TIDAL_ENABLED = booleanPreferencesKey("tidal_enabled")
+        val TIDAL_SERVER_URL = stringPreferencesKey("tidal_server_url")
+        val TIDAL_USERNAME = stringPreferencesKey("tidal_username")
+        val TIDAL_PASSWORD = stringPreferencesKey("tidal_password")
+        val TIDAL_ACCESS_TOKEN = stringPreferencesKey("tidal_access_token")
+        val TIDAL_TOKEN_EXPIRY = longPreferencesKey("tidal_token_expiry")
+        val TIDAL_QUALITY = stringPreferencesKey("tidal_quality")
     }
 
     val appRebrandDialogShownFlow: Flow<Boolean> =
@@ -1382,6 +1391,85 @@ constructor(
     suspend fun setSubsonicUseLocalCache(useCache: Boolean) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.SUBSONIC_USE_LOCAL_CACHE] = useCache
+        }
+    }
+
+    // ===== Tidal HiFi API Settings =====
+
+    val tidalEnabledFlow: Flow<Boolean> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.TIDAL_ENABLED] ?: false
+        }
+
+    suspend fun setTidalEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.TIDAL_ENABLED] = enabled
+        }
+    }
+
+    val tidalServerUrlFlow: Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.TIDAL_SERVER_URL] ?: "http://localhost:3000"
+        }
+
+    suspend fun setTidalServerUrl(url: String) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.TIDAL_SERVER_URL] = url
+        }
+    }
+
+    val tidalUsernameFlow: Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.TIDAL_USERNAME] ?: ""
+        }
+
+    suspend fun setTidalUsername(username: String) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.TIDAL_USERNAME] = username
+        }
+    }
+
+    val tidalPasswordFlow: Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.TIDAL_PASSWORD] ?: ""
+        }
+
+    suspend fun setTidalPassword(password: String) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.TIDAL_PASSWORD] = password
+        }
+    }
+
+    val tidalAccessTokenFlow: Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.TIDAL_ACCESS_TOKEN] ?: ""
+        }
+
+    suspend fun setTidalAccessToken(token: String) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.TIDAL_ACCESS_TOKEN] = token
+        }
+    }
+
+    val tidalTokenExpiryFlow: Flow<Long> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.TIDAL_TOKEN_EXPIRY] ?: 0L
+        }
+
+    suspend fun setTidalTokenExpiry(expiryTimestamp: Long) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.TIDAL_TOKEN_EXPIRY] = expiryTimestamp
+        }
+    }
+
+    val tidalQualityFlow: Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.TIDAL_QUALITY] ?: "LOSSLESS"
+        }
+
+    suspend fun setTidalQuality(quality: String) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.TIDAL_QUALITY] = quality
         }
     }
 }

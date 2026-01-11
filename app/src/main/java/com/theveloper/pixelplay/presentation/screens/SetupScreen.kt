@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -628,11 +629,11 @@ fun NavidromeConfigPage(
 ) {
     val context = LocalContext.current
     val cloudIcons = persistentListOf(
-        R.drawable.rounded_cloud_24,
         R.drawable.rounded_music_note_24,
         R.drawable.rounded_album_24,
         R.drawable.rounded_artist_24,
-        R.drawable.rounded_playlist_play_24
+        R.drawable.rounded_playlist_play_24,
+        R.drawable.rounded_library_music_24
     )
     
     var serverUrl by remember { mutableStateOf("") }

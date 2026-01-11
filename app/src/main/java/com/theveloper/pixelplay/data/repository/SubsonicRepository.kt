@@ -98,26 +98,65 @@ class SubsonicRepository @Inject constructor(
         }
     }
 
-    suspend fun getAlbum(id: String): Result<Pair<Album, List<Song>>> {
+    suspend fun getArtistWithAlbums(id: String): Result<Pair<Artist, List<Album>>> {
         return try {
             val auth = getAuthParams() ?: return Result.failure(Exception("Server not configured"))
             val (username, token, salt) = auth
 
-            val response = subsonicApiService.getAlbum(username, token, salt, id)
+            val response = subsonicApiService.getArtist(username, token, salt, id)
             if (response.subsonicResponse.status != "ok") {
                 val error = response.subsonicResponse.error
                 return Result.failure(Exception(error?.message ?: "Unknown error"))
             }
 
+            val artistResult = response.subsonicResponse.artist
+                ?: return Result.failure(Exception("Artist not found"))
+
+            val artist = artistResult.toArtist()
+            val albums = artistResult.album?.map { it.toAlbum() } ?: emptyList()
+
+            Log.d("SubsonicRepository", "getArtistWithAlbums(${id}): Artist '${artist.name}' has ${artistResult.album?.size ?: 0} albums in API response")
+            if (albums.isNotEmpty()) {
+                Log.d("SubsonicRepository", "  Albums: ${albums.joinToString(", ") { "'${it.title}' (id=${it.subsonicId})" }}")
+            }
+
+            Result.success(Pair(artist, albums))
+        } catch (e: Exception) {
+            Log.e("SubsonicRepository", "Failed to fetch artist with albums", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAlbum(id: String): Result<Pair<Album, List<Song>>> {
+        return try {
+            val auth = getAuthParams() ?: return Result.failure(Exception("Server not configured"))
+            val (username, token, salt) = auth
+
+            Log.d("SubsonicRepository", "getAlbum($id): Calling API...")
+            val response = subsonicApiService.getAlbum(username, token, salt, id)
+
+            Log.d("SubsonicRepository", "getAlbum($id): Response status = ${response.subsonicResponse.status}")
+
+            if (response.subsonicResponse.status != "ok") {
+                val error = response.subsonicResponse.error
+                Log.e("SubsonicRepository", "getAlbum($id): API returned error: ${error?.message} (code=${error?.code})")
+                return Result.failure(Exception(error?.message ?: "Unknown error"))
+            }
+
             val albumResult = response.subsonicResponse.album
-                ?: return Result.failure(Exception("Album not found"))
+            if (albumResult == null) {
+                Log.e("SubsonicRepository", "getAlbum($id): API returned OK but album field is null")
+                return Result.failure(Exception("Album not found"))
+            }
 
             val album = albumResult.toAlbum()
             val songs = albumResult.song?.map { it.toSong(getServerUrl(), auth) } ?: emptyList()
 
+            Log.d("SubsonicRepository", "getAlbum(${id}): Album '${album.title}' has ${albumResult.song?.size ?: 0} songs in response, mapped to ${songs.size} song entities")
+
             Result.success(Pair(album, songs))
         } catch (e: Exception) {
-            Log.e("SubsonicRepository", "Failed to fetch album", e)
+            Log.e("SubsonicRepository", "getAlbum($id): Exception occurred: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -263,7 +302,7 @@ class SubsonicRepository @Inject constructor(
         }
 
         val (token, salt) = authHelper.generateAuthParams(password)
-        return subsonicApiService.getStreamUrl(
+        return SubsonicUrlHelper.getStreamUrl(
             authHelper.normalizeServerUrl(serverUrl),
             username,
             token,
@@ -294,7 +333,7 @@ class SubsonicRepository @Inject constructor(
         }
 
         val (token, salt) = authHelper.generateAuthParams(password)
-        return subsonicApiService.getCoverArtUrl(
+        return SubsonicUrlHelper.getCoverArtUrl(
             authHelper.normalizeServerUrl(serverUrl),
             username,
             token,
@@ -315,9 +354,9 @@ class SubsonicRepository @Inject constructor(
         return Artist(
             id = id.toLongOrNull() ?: id.hashCode().toLong(),
             name = name,
+            songCount = 0, // Not provided by Subsonic getArtists
             imageUrl = coverArt?.let { getCoverArtUrl(it) },
-            albumCount = albumCount,
-            songCount = 0 // Not provided by Subsonic getArtists
+            subsonicId = id // Preserve original Subsonic string ID
         )
     }
 
@@ -325,9 +364,9 @@ class SubsonicRepository @Inject constructor(
         return Artist(
             id = id.toLongOrNull() ?: id.hashCode().toLong(),
             name = name,
+            songCount = album?.sumOf { it.songCount } ?: 0,
             imageUrl = coverArt?.let { getCoverArtUrl(it) },
-            albumCount = albumCount,
-            songCount = album?.sumOf { it.songCount } ?: 0
+            subsonicId = id // Preserve original Subsonic string ID
         )
     }
 
@@ -335,12 +374,11 @@ class SubsonicRepository @Inject constructor(
         return Album(
             id = id.toLongOrNull() ?: id.hashCode().toLong(),
             title = getDisplayTitle(),
-            artistName = artist ?: "Unknown Artist",
-            artistId = artistId?.toLongOrNull() ?: -1L,
+            artist = artist ?: "Unknown Artist",
+            year = year ?: 0,
             albumArtUriString = coverArt?.let { getCoverArtUrl(it) },
             songCount = songCount,
-            year = year ?: 0,
-            duration = (duration * 1000).toLong() // Convert seconds to milliseconds
+            subsonicId = id // Preserve original Subsonic string ID
         )
     }
 
@@ -349,19 +387,18 @@ class SubsonicRepository @Inject constructor(
         return Album(
             id = id.toLongOrNull() ?: id.hashCode().toLong(),
             title = displayTitle,
-            artistName = artist ?: "Unknown Artist",
-            artistId = artistId?.toLongOrNull() ?: -1L,
+            artist = artist ?: "Unknown Artist",
+            year = year ?: 0,
             albumArtUriString = coverArt?.let { getCoverArtUrl(it) },
             songCount = songCount,
-            year = year ?: 0,
-            duration = (duration * 1000).toLong()
+            subsonicId = id // Preserve original Subsonic string ID
         )
     }
 
     private fun SubsonicSong.toSong(serverUrl: String, auth: Triple<String, String, String>): Song {
         val (username, token, salt) = auth
-        val streamUrl = subsonicApiService.getStreamUrl(serverUrl, username, token, salt, id)
-        
+        val streamUrl = SubsonicUrlHelper.getStreamUrl(serverUrl, username, token, salt, id, maxBitRate = 0)
+
         return Song(
             id = id,
             title = title,

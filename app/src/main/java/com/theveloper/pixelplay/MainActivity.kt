@@ -310,6 +310,7 @@ class MainActivity : ComponentActivity() {
     }
     
     companion object {
+        private const val TAG = "MainActivity"
         const val ACTION_SHUFFLE_ALL = "com.theveloper.pixelplay.ACTION_SHUFFLE_ALL"
         const val ACTION_OPEN_PLAYLIST = "com.theveloper.pixelplay.ACTION_OPEN_PLAYLIST"
         const val EXTRA_PLAYLIST_ID = "playlist_id"
@@ -874,6 +875,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        Log.i(TAG, "onResume - calling syncManager.sync()")
         syncManager.sync()
     }
 

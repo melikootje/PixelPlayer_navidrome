@@ -11,6 +11,7 @@ import coil.ImageLoader
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.theveloper.pixelplay.PixelPlayApplication
+import com.theveloper.pixelplay.data.api.tidal.TidalApiService
 import com.theveloper.pixelplay.data.database.AlbumArtThemeDao
 import com.theveloper.pixelplay.data.database.MusicDao
 import com.theveloper.pixelplay.data.database.PixelPlayDatabase
@@ -39,6 +40,8 @@ import kotlinx.serialization.json.Json
 import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -360,14 +363,61 @@ object AppModule {
     }
 
     /**
+     * Provee un OkHttpClient específico para Subsonic con interceptor de URL dinámica.
+     */
+    @Provides
+    @Singleton
+    @SubsonicOkHttp
+    fun provideSubsonicOkHttpClient(
+        okHttpClient: OkHttpClient,
+        userPreferencesRepository: UserPreferencesRepository
+    ): OkHttpClient {
+        return okHttpClient.newBuilder()
+            .addInterceptor { chain ->
+                val originalRequest = chain.request()
+                val originalUrl = originalRequest.url
+
+                // Get the configured server URL synchronously
+                // This is safe because OkHttp runs on a background thread
+                val serverUrl = runBlocking {
+                    userPreferencesRepository.subsonicServerUrlFlow.first()
+                }
+
+                // If no server URL is configured, use localhost as fallback
+                val baseUrl = if (serverUrl.isNotBlank()) {
+                    serverUrl.removeSuffix("/")
+                } else {
+                    "http://localhost:4533"
+                }
+
+                // Build the new URL with the configured server
+                val newUrl = originalUrl.newBuilder()
+                    .scheme(if (baseUrl.startsWith("https")) "https" else "http")
+                    .host(baseUrl.substringAfter("://").substringBefore(":").substringBefore("/"))
+                    .port(
+                        baseUrl.substringAfter("://").substringAfter(":", "").substringBefore("/")
+                            .toIntOrNull() ?: if (baseUrl.startsWith("https")) 443 else 80
+                    )
+                    .build()
+
+                val newRequest = originalRequest.newBuilder()
+                    .url(newUrl)
+                    .build()
+
+                chain.proceed(newRequest)
+            }
+            .build()
+    }
+
+    /**
      * Provee una instancia de Retrofit para la API de Subsonic/Navidrome.
      */
     @Provides
     @Singleton
     @SubsonicRetrofit
-    fun provideSubsonicRetrofit(okHttpClient: OkHttpClient): Retrofit {
+    fun provideSubsonicRetrofit(@SubsonicOkHttp okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://localhost:4533/")
+            .baseUrl("http://localhost:4533/")  // Dummy URL, will be replaced by interceptor
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -380,5 +430,28 @@ object AppModule {
     @Singleton
     fun provideSubsonicApiService(@SubsonicRetrofit retrofit: Retrofit): SubsonicApiService {
         return retrofit.create(SubsonicApiService::class.java)
+    }
+
+    /**
+     * Provee una instancia de Retrofit para la API de Tidal.
+     */
+    @Provides
+    @Singleton
+    @TidalRetrofit
+    fun provideTidalRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://api.tidal.com/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    /**
+     * Provee el servicio de la API de Tidal.
+     */
+    @Provides
+    @Singleton
+    fun provideTidalApiService(@TidalRetrofit retrofit: Retrofit): TidalApiService {
+        return retrofit.create(TidalApiService::class.java)
     }
 }

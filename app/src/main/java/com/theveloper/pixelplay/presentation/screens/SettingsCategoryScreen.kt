@@ -39,6 +39,7 @@ import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material3.AlertDialog
@@ -461,13 +462,19 @@ fun SettingsCategoryScreen(
                             var testConnectionState by remember { mutableStateOf<TestConnectionState>(TestConnectionState.Idle) }
                             
                             LaunchedEffect(Unit) {
-                                settingsViewModelForPrefs.geminiApiKey.first() // Access to trigger init if needed
-                                // Read from DataStore using flows (we need a workaround)
-                                // For now, set default values - they'll be initialized in PixelPlayApplication
-                                serverUrl = ""
-                                username = ""
-                                password = ""
-                                isEnabled = true
+                                // Load values from DataStore
+                                launch {
+                                    settingsViewModelForPrefs.subsonicEnabled.collect { isEnabled = it }
+                                }
+                                launch {
+                                    settingsViewModelForPrefs.subsonicServerUrl.collect { serverUrl = it }
+                                }
+                                launch {
+                                    settingsViewModelForPrefs.subsonicUsername.collect { username = it }
+                                }
+                                launch {
+                                    settingsViewModelForPrefs.subsonicPassword.collect { password = it }
+                                }
                             }
                             
                             SwitchSettingItem(
@@ -476,6 +483,7 @@ fun SettingsCategoryScreen(
                                 checked = isEnabled,
                                 onCheckedChange = { 
                                     isEnabled = it
+                                    settingsViewModel.setSubsonicEnabled(it)
                                 },
                                 leadingIcon = { Icon(Icons.Rounded.Cloud, null, tint = MaterialTheme.colorScheme.secondary) }
                             )
@@ -485,7 +493,10 @@ fun SettingsCategoryScreen(
                             TextFieldSettingItem(
                                 label = "Server URL",
                                 value = serverUrl,
-                                onValueChange = { serverUrl = it },
+                                onValueChange = {
+                                    serverUrl = it
+                                    settingsViewModel.setSubsonicServerUrl(it)
+                                },
                                 placeholder = "http://server:port",
                                 enabled = isEnabled
                             )
@@ -495,7 +506,10 @@ fun SettingsCategoryScreen(
                             TextFieldSettingItem(
                                 label = "Username",
                                 value = username,
-                                onValueChange = { username = it },
+                                onValueChange = {
+                                    username = it
+                                    settingsViewModel.setSubsonicUsername(it)
+                                },
                                 placeholder = "Your username",
                                 enabled = isEnabled
                             )
@@ -505,7 +519,10 @@ fun SettingsCategoryScreen(
                             TextFieldSettingItem(
                                 label = "Password",
                                 value = password,
-                                onValueChange = { password = it },
+                                onValueChange = {
+                                    password = it
+                                    settingsViewModel.setSubsonicPassword(it)
+                                },
                                 placeholder = "Your password",
                                 isPassword = true,
                                 enabled = isEnabled
@@ -521,6 +538,197 @@ fun SettingsCategoryScreen(
                                     testState = testConnectionState,
                                     onTest = { testConnectionState = it }
                                 )
+
+                                Spacer(Modifier.height(8.dp))
+
+                                SyncLibraryButton()
+                            }
+
+                            // Tidal HiFi API Section
+                            Spacer(Modifier.height(16.dp))
+
+                            var tidalServerUrl by remember { mutableStateOf("") }
+                            var tidalUsername by remember { mutableStateOf("") }
+                            var tidalPassword by remember { mutableStateOf("") }
+                            var tidalIsEnabled by remember { mutableStateOf(false) }
+                            var tidalQuality by remember { mutableStateOf("LOSSLESS") }
+                            var tidalTestConnectionState by remember { mutableStateOf<TestConnectionState>(TestConnectionState.Idle) }
+
+                            LaunchedEffect(Unit) {
+                                launch {
+                                    settingsViewModelForPrefs.tidalEnabled.collect { tidalIsEnabled = it }
+                                }
+                                launch {
+                                    settingsViewModelForPrefs.tidalServerUrl.collect { tidalServerUrl = it }
+                                }
+                                launch {
+                                    settingsViewModelForPrefs.tidalUsername.collect { tidalUsername = it }
+                                }
+                                launch {
+                                    settingsViewModelForPrefs.tidalPassword.collect { tidalPassword = it }
+                                }
+                                launch {
+                                    settingsViewModelForPrefs.tidalQuality.collect { tidalQuality = it }
+                                }
+                            }
+
+                            SwitchSettingItem(
+                                title = "Enable Tidal (HiFi API)",
+                                subtitle = "Stream lossless music from Tidal via HiFi API",
+                                checked = tidalIsEnabled,
+                                onCheckedChange = {
+                                    tidalIsEnabled = it
+                                    settingsViewModel.setTidalEnabled(it)
+                                },
+                                leadingIcon = { Icon(painterResource(R.drawable.rounded_music_note_24), null, tint = MaterialTheme.colorScheme.secondary) }
+                            )
+
+                            Spacer(Modifier.height(4.dp))
+
+                            TextFieldSettingItem(
+                                label = "HiFi API Server URL",
+                                value = tidalServerUrl,
+                                onValueChange = {
+                                    tidalServerUrl = it
+                                    settingsViewModel.setTidalServerUrl(it)
+                                },
+                                placeholder = "http://localhost:3000",
+                                enabled = tidalIsEnabled
+                            )
+
+                            Spacer(Modifier.height(4.dp))
+
+                            TextFieldSettingItem(
+                                label = "Tidal Username",
+                                value = tidalUsername,
+                                onValueChange = {
+                                    tidalUsername = it
+                                    settingsViewModel.setTidalUsername(it)
+                                },
+                                placeholder = "Your Tidal username",
+                                enabled = tidalIsEnabled
+                            )
+
+                            Spacer(Modifier.height(4.dp))
+
+                            TextFieldSettingItem(
+                                label = "Tidal Password",
+                                value = tidalPassword,
+                                onValueChange = {
+                                    tidalPassword = it
+                                    settingsViewModel.setTidalPassword(it)
+                                },
+                                placeholder = "Your Tidal password",
+                                isPassword = true,
+                                enabled = tidalIsEnabled
+                            )
+
+                            if (tidalIsEnabled) {
+                                Spacer(Modifier.height(4.dp))
+
+                                ThemeSelectorItem(
+                                    label = "Audio Quality",
+                                    description = "Select playback quality for Tidal streams.",
+                                    options = mapOf(
+                                        "LOW" to "LOW (96 kbps AAC)",
+                                        "HIGH" to "HIGH (320 kbps AAC)",
+                                        "LOSSLESS" to "LOSSLESS (FLAC 16-bit/44.1kHz)",
+                                        "HI_RES" to "HI_RES (FLAC 24-bit/96kHz)"
+                                    ),
+                                    selectedKey = tidalQuality,
+                                    onSelectionChanged = { settingsViewModel.setTidalQuality(it) },
+                                    leadingIcon = { Icon(painterResource(R.drawable.rounded_music_note_24), null, tint = MaterialTheme.colorScheme.secondary) }
+                                )
+
+                                Spacer(Modifier.height(8.dp))
+
+                                // Test Connection Button
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainer,
+                                    onClick = {
+                                        tidalTestConnectionState = TestConnectionState.Testing
+                                        coroutineScope.launch {
+                                            try {
+                                                val result = settingsViewModel.testTidalConnection()
+                                                if (result.isSuccess) {
+                                                    tidalTestConnectionState = TestConnectionState.Success("Connection successful!")
+                                                    Toast.makeText(
+                                                        context,
+                                                        "✓ Tidal connection successful!",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                } else {
+                                                    val errorMsg = result.exceptionOrNull()?.message ?: "Unknown error"
+                                                    tidalTestConnectionState = TestConnectionState.Error(errorMsg)
+                                                    Toast.makeText(
+                                                        context,
+                                                        "✗ Tidal connection failed: $errorMsg",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                }
+                                            } catch (e: Exception) {
+                                                tidalTestConnectionState = TestConnectionState.Error(e.message ?: "Unknown error")
+                                                Toast.makeText(
+                                                    context,
+                                                    "✗ Error: ${e.message}",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            } finally {
+                                                // Reset state after 2 seconds
+                                                kotlinx.coroutines.delay(2000)
+                                                tidalTestConnectionState = TestConnectionState.Idle
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.CloudSync,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            "Test Tidal Connection",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(8.dp))
+
+                                // Sync Library Button (placeholder)
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    onClick = {
+                                        Toast.makeText(context, "Tidal library sync - implementation pending", Toast.LENGTH_SHORT).show()
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.CloudSync,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Text(
+                                            "Sync Tidal Library",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
                             }
                         }
                         SettingsCategory.AI_INTEGRATION -> {
@@ -858,4 +1066,109 @@ fun TestConnectionButton(
             else -> {}
         }
     }
+}
+
+@Composable
+fun SyncLibraryButton() {
+    val context = LocalContext.current
+    var syncState by remember { mutableStateOf<SyncState>(SyncState.Idle) }
+    val workManager = remember { androidx.work.WorkManager.getInstance(context) }
+
+    // Observe work status continuously but safely with LaunchedEffect
+    LaunchedEffect(Unit) {
+        workManager.getWorkInfosForUniqueWorkFlow("NavidromeSync")
+            .collect { workInfos ->
+                val workInfo = workInfos.firstOrNull()
+                syncState = when {
+                    workInfo == null -> SyncState.Idle
+                    workInfo.state == androidx.work.WorkInfo.State.SUCCEEDED -> {
+                        val songCount = workInfo.outputData.getInt(
+                            com.theveloper.pixelplay.data.worker.NavidromeSyncWorker.OUTPUT_TOTAL_SONGS,
+                            0
+                        )
+                        SyncState.Success("Synced $songCount songs from Navidrome!")
+                    }
+                    workInfo.state == androidx.work.WorkInfo.State.FAILED -> {
+                        SyncState.Error("Sync failed. Check connection settings.")
+                    }
+                    workInfo.state == androidx.work.WorkInfo.State.RUNNING -> {
+                        SyncState.Syncing
+                    }
+                    else -> syncState // Keep current state for ENQUEUED, etc.
+                }
+            }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(16.dp)
+    ) {
+        androidx.compose.material3.Button(
+            onClick = {
+                val syncWorkRequest = com.theveloper.pixelplay.data.worker.NavidromeSyncWorker.navidromeSyncWork()
+                workManager.enqueueUniqueWork(
+                    "NavidromeSync",
+                    androidx.work.ExistingWorkPolicy.REPLACE,
+                    syncWorkRequest
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = syncState !is SyncState.Syncing,
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        ) {
+            when (syncState) {
+                is SyncState.Syncing -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Syncing Library...")
+                }
+                else -> {
+                    Icon(
+                        imageVector = Icons.Rounded.CloudSync,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Sync Library from Navidrome")
+                }
+            }
+        }
+
+        val currentSyncState = syncState
+        when (currentSyncState) {
+            is SyncState.Success -> {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = currentSyncState.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF4CAF50)
+                )
+            }
+            is SyncState.Error -> {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = currentSyncState.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            else -> {}
+        }
+    }
+}
+
+sealed class SyncState {
+    object Idle : SyncState()
+    object Syncing : SyncState()
+    data class Success(val message: String) : SyncState()
+    data class Error(val message: String) : SyncState()
 }

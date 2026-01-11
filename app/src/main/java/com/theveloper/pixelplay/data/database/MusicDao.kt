@@ -459,7 +459,7 @@ interface MusicDao {
      * Get all artists with their song counts computed from the junction table.
      */
     @Query("""
-        SELECT artists.id, artists.name, artists.image_url,
+        SELECT artists.id, artists.name, artists.image_url, artists.subsonic_id,
                (SELECT COUNT(*) FROM song_artist_cross_ref WHERE song_artist_cross_ref.artist_id = artists.id) AS track_count
         FROM artists
         ORDER BY artists.name ASC
@@ -470,7 +470,7 @@ interface MusicDao {
      * Get all artists with song counts, filtered by allowed directories.
      */
     @Query("""
-        SELECT DISTINCT artists.id, artists.name, artists.image_url,
+        SELECT DISTINCT artists.id, artists.name, artists.image_url, artists.subsonic_id,
                (SELECT COUNT(*) FROM song_artist_cross_ref 
                 INNER JOIN songs ON song_artist_cross_ref.song_id = songs.id
                 WHERE song_artist_cross_ref.artist_id = artists.id

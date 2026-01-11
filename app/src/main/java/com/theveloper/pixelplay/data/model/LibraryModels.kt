@@ -10,7 +10,8 @@ data class Album(
     val artist: String,
     val year: Int,
     val albumArtUriString: String?,
-    val songCount: Int
+    val songCount: Int,
+    val subsonicId: String? = null // Original Subsonic/Navidrome string ID
 )
 
 @Immutable
@@ -18,7 +19,8 @@ data class Artist(
     val id: Long, // MediaStore.Audio.Artists._ID
     val name: String,
     val songCount: Int,
-    val imageUrl: String? = null // Deezer artist image URL
+    val imageUrl: String? = null, // Deezer artist image URL
+    val subsonicId: String? = null // Original Subsonic/Navidrome string ID
 )
 
 /**

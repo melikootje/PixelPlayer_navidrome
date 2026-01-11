@@ -22,3 +22,17 @@ annotation class FastOkHttpClient
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class SubsonicRetrofit
+
+/**
+ * Qualifier for Subsonic/Navidrome OkHttpClient with dynamic URL.
+ */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class SubsonicOkHttp
+
+/**
+ * Qualifier for Tidal Retrofit instance.
+ */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class TidalRetrofit

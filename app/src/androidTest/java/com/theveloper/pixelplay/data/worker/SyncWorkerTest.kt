@@ -1,7 +1,9 @@
 package com.theveloper.pixelplay.data.worker
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.database.MatrixCursor
+import android.net.Uri
 import android.provider.MediaStore
 import androidx.concurrent.futures.ResolvableFuture
 import androidx.room.Room
@@ -15,8 +17,10 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.Futures
 import com.theveloper.pixelplay.data.database.MusicDao
 import com.theveloper.pixelplay.data.database.PixelPlayDatabase
+import com.theveloper.pixelplay.data.preferences.UserPreferencesRepository
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.eq
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -32,11 +36,13 @@ class SyncWorkerTest {
     private lateinit var database: PixelPlayDatabase
     private lateinit var musicDao: MusicDao
     private lateinit var mockContentResolver: android.content.ContentResolver
+    private lateinit var mockUserPreferences: UserPreferencesRepository
 
 
     // Test WorkerFactory para inyectar el DAO (y potencialmente el ContentResolver mockeado)
     class TestSyncWorkerFactory(
         private val dao: MusicDao,
+        private val userPrefs: UserPreferencesRepository,
         private val resolver: android.content.ContentResolver? = null // Opcional si no se mockea a nivel de worker
     ) : WorkerFactory() {
         override fun createWorker(
@@ -49,7 +55,7 @@ class SyncWorkerTest {
                 // SyncWorker(appContext, workerParameters, dao, resolver ?: appContext.contentResolver)
                 // Como SyncWorker obtiene el resolver de appContext, no necesitamos pasarlo explícitamente aquí
                 // a menos que queramos un mock muy específico a nivel de constructor del worker.
-                SyncWorker(appContext, workerParameters, dao)
+                SyncWorker(appContext, workerParameters, dao, userPrefs)
             } else {
                 null
             }
@@ -65,6 +71,7 @@ class SyncWorkerTest {
             .build()
         musicDao = database.musicDao()
         mockContentResolver = mockk() // Mockear el ContentResolver
+        mockUserPreferences = mockk(relaxed = true) // Mock UserPreferencesRepository
     }
 
     @After
@@ -127,22 +134,22 @@ class SyncWorkerTest {
         }
 
         val worker = TestListenableWorkerBuilder<SyncWorker>(testContext) // Usar testContext
-            .setWorkerFactory(TestSyncWorkerFactory(musicDao))
+            .setWorkerFactory(TestSyncWorkerFactory(musicDao, mockUserPreferences))
             .build()
 
         val result = worker.doWork()
         assertThat(result).isEqualTo(ListenableWorker.Result.success())
 
         // Verificar datos en la base de datos
-        val songsInDb = musicDao.getSongs(10, 0).first()
+        val songsInDb = musicDao.getSongs(emptyList(), false).first()
         assertThat(songsInDb).hasSize(2)
         assertThat(songsInDb.find { it.id == 1L }?.title).isEqualTo("Test Song 1")
 
-        val albumsInDb = musicDao.getAlbums(10,0).first()
+        val albumsInDb = musicDao.getAlbums(emptyList(), false).first()
         assertThat(albumsInDb).hasSize(2)
         assertThat(albumsInDb.find { it.id == 201L }?.title).isEqualTo("Test Album 1")
 
-        val artistsInDb = musicDao.getArtists(10,0).first()
+        val artistsInDb = musicDao.getArtists(emptyList(), false).first()
         assertThat(artistsInDb).hasSize(2)
         assertThat(artistsInDb.find { it.id == 101L }?.name).isEqualTo("Test Artist 1")
     }
@@ -159,7 +166,7 @@ class SyncWorkerTest {
         }
 
         val worker = TestListenableWorkerBuilder<SyncWorker>(testContext)
-            .setWorkerFactory(TestSyncWorkerFactory(musicDao))
+            .setWorkerFactory(TestSyncWorkerFactory(musicDao, mockUserPreferences))
             .build()
 
         val result = worker.doWork()
@@ -170,10 +177,8 @@ class SyncWorkerTest {
     }
 
     // Helper para mockear URIs que empiezan con un prefijo
-    private fun anyUriStartsWith(prefix: String): Uri = io.mockk.match { it.toString().startsWith(prefix) }
-    private fun anyUriContains(substring: String): Uri = io.mockk.match { it.toString().contains(substring) }
+    private fun anyUriStartsWith(prefix: String): Uri = io.mockk.match { uri -> uri.toString().startsWith(prefix) }
+    private fun anyUriContains(substring: String): Uri = io.mockk.match { uri -> uri.toString().contains(substring) }
 
 }
 
-// Wrapper simple para Context para poder mockear getContentResolver
-open class ContextWrapper(base: Context) : android.content.ContextWrapper(base)

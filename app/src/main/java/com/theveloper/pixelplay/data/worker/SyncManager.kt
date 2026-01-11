@@ -121,24 +121,32 @@ class SyncManager @Inject constructor(
 
     fun sync() {
         sharingScope.launch {
+            Log.d(TAG, "sync() called")
             val lastSyncTime = userPreferencesRepository.getLastSyncTimestamp()
             val currentTime = System.currentTimeMillis()
+            val timeSinceLastSync = currentTime - lastSyncTime
+            val minInterval = MIN_SYNC_INTERVAL_MS
 
-            if (lastSyncTime == 0L || (currentTime - lastSyncTime) >= MIN_SYNC_INTERVAL_MS) {
-                Log.d(TAG, "Syncing library (last sync: ${(currentTime - lastSyncTime) / 1000}s ago)")
+            Log.d(TAG, "lastSyncTime: $lastSyncTime, currentTime: $currentTime, timeSinceLastSync: ${timeSinceLastSync}ms, minInterval: ${minInterval}ms")
+
+            if (lastSyncTime == 0L || timeSinceLastSync >= minInterval) {
+                Log.d(TAG, "Syncing library (last sync: ${timeSinceLastSync / 1000}s ago)")
                 val syncRequest = if (lastSyncTime == 0L) {
                     Log.d(TAG, "Initial sync detected. Using REBUILD mode for maximum speed.")
                     SyncWorker.rebuildDatabaseWork()
                 } else {
+                    Log.d(TAG, "Using INCREMENTAL mode for sync")
                     SyncWorker.startUpSyncWork()
                 }
+                Log.d(TAG, "Enqueuing sync work with name: ${SyncWorker.WORK_NAME}")
                 workManager.enqueueUniqueWork(
                     SyncWorker.WORK_NAME,
                     ExistingWorkPolicy.REPLACE,
                     syncRequest
                 )
+                Log.d(TAG, "Sync work enqueued successfully")
             } else {
-                Log.d(TAG, "Skipping sync - last sync was ${(currentTime - lastSyncTime) / 1000}s ago (min: ${MIN_SYNC_INTERVAL_MS / 1000}s)")
+                Log.d(TAG, "Skipping sync - last sync was ${timeSinceLastSync / 1000}s ago (min: ${minInterval / 1000}s)")
             }
         }
     }

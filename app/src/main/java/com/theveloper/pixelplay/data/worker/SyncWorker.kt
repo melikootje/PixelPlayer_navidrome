@@ -249,14 +249,21 @@ class SyncWorker @AssistedInject constructor(
         val selectionBuilder = StringBuilder()
         val selectionArgsList = mutableListOf<String>()
 
+        // Include all music files with duration >= 10 seconds
+        // OR specific audio file extensions (to catch files that might not be flagged as IS_MUSIC)
         selectionBuilder.append("((${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= ?) ")
         selectionArgsList.add("10000")
 
+        selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.mp3' ")
         selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.m4a' ")
+        selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.aac' ")
         selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.flac' ")
         selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.wav' ")
         selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.opus' ")
-        selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.ogg')")
+        selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.ogg' ")
+        selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.oga' ")
+        selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.wma' ")
+        selectionBuilder.append("OR ${MediaStore.Audio.Media.DATA} LIKE '%.aiff')")
 
         return Pair(selectionBuilder.toString(), selectionArgsList.toTypedArray())
     }

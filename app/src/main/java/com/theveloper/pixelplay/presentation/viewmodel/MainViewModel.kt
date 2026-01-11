@@ -72,8 +72,13 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             // For fresh installs after setup, SetupViewModel.setSetupComplete() triggers sync
             // For returning users (setup already complete), we trigger sync here
-            if (isSetupComplete.value) {
+            val setupComplete = isSetupComplete.value
+            LogUtils.i(this@MainViewModel, "startSync: isSetupComplete = $setupComplete")
+            if (setupComplete) {
+                LogUtils.i(this@MainViewModel, "Triggering syncManager.sync()")
                 syncManager.sync()
+            } else {
+                LogUtils.i(this@MainViewModel, "Setup not complete, skipping sync")
             }
         }
     }

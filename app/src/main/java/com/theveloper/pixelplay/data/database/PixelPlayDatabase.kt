@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TransitionRuleEntity::class,
         SongArtistCrossRef::class
     ],
-    version = 11, // Incremented version for artist image support
+    version = 12, // Incremented for subsonicId field in AlbumEntity
     exportSchema = false
 )
 abstract class PixelPlayDatabase : RoomDatabase() {
